@@ -99,25 +99,38 @@ bcftools index $VCF_FILE
 # FILTER VARIANTS
 ############################
 
+############################
+# FILTER VARIANTS
+############################
+
 echo "Filtering variants (QUAL ≥ 30)..."
-vcftools --gzvcf $VCF_FILE \
+
+FILTERED_VCF="${SRA_ID}_filtered.recode.vcf"
+
+vcftools --gzvcf "$VCF_FILE" \
          --minQ 30 \
          --recode \
          --recode-INFO-all \
-         --out ${SRA_ID}_filtered \
+         --out "${SRA_ID}_filtered" \
          2> vcftools_error.log
 
-if [ ! -f "$FILTERED_VCF" ]; then
+if [[ ! -f "$FILTERED_VCF" ]]; then
     echo "Filtered VCF not created. Exiting."
+    cat vcftools_error.log
     exit 1
 fi
+
+echo "Filtered VCF created: $FILTERED_VCF"
 
 ############################
 # VARIANT ANNOTATION (SnpEff)
 ############################
 
-echo "Annotating variants using SnpEff..."
-snpEff NC_045512.2 \
-    $FILTERED_VCF > $ANNOTATED_VCF || { echo "SnpEff annotation failed"; exit 1; }
+ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
 
-echo "Pipeline completed successfully."
+echo "Annotating variants using SnpEff..."
+
+snpEff NC_045512.2 \
+    "$FILTERED_VCF" > "$ANNOTATED_VCF" || { echo "SnpEff annotation failed"; exit 1; }
+
+echo "Annotated VCF created: $ANNOTATED_VCF"

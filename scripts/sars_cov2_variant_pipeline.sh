@@ -36,31 +36,20 @@ wget -O "$REF_FASTA" "$REF_URL" || { echo "Failed to download reference genome";
 ############################
 # FETCH SRA DATA
 ############################
-
 echo "Fetching SRA data..."
-prefetch $SRA_ID || { echo "Failed to fetch SRA data"; exit 1; }
+prefetch "$SRA_ID" || { echo "Failed to fetch SRA data"; exit 1; }
 
-# Move SRA file if downloaded to default directory
-SRA_DEFAULT_DIR="$HOME/ncbi/public/sra"
-
-if [ -f "$SRA_DEFAULT_DIR/$SRA_FILE" ]; then
-    mv "$SRA_DEFAULT_DIR/$SRA_FILE" .
-fi
-
-if [ ! -f "$SRA_FILE" ]; then
-    echo "SRA file not found. Exiting."
-    exit 1
-fi
-
-############################
-# CONVERT SRA → FASTQ
-############################
-
+# -----------------------------
+# Convert SRA to FASTQ
+# -----------------------------
 echo "Converting SRA to FASTQ..."
-fasterq-dump $SRA_FILE || { echo "Failed to convert SRA to FASTQ"; exit 1; }
+fasterq-dump "$SRA_ID" --split-files --threads 4 || { echo "Failed to convert SRA to FASTQ"; exit 1; }
 
-if [ ! -f "$FASTQ1" ] || [ ! -f "$FASTQ2" ]; then
-    echo "FASTQ files not found. Exiting."
+FASTQ1="${SRA_ID}_1.fastq"
+FASTQ2="${SRA_ID}_2.fastq"
+
+if [[ ! -f "$FASTQ1" || ! -f "$FASTQ2" ]]; then
+    echo "FASTQ files not found after fasterq-dump"
     exit 1
 fi
 

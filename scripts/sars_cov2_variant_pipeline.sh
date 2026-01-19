@@ -27,14 +27,11 @@ ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
 # DOWNLOAD REFERENCE GENOME
 ############################
 
-# Reference genome
-REF_URL="https://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/Severe_acute_respiratory_syndrome_coronavirus_2/latest_assembly_versions/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz"
 REF_FASTA="NC_045512.2.fasta"
+REF_URL="https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=NC_045512.2&db=nuccore&report=fasta"
 
 echo "Downloading SARS-CoV-2 reference genome..."
-wget -O ref.fna.gz "$REF_URL" || { echo "Failed to download reference genome"; exit 1; }
-
-gunzip -c ref.fna.gz > "$REF_FASTA"
+wget -O "$REF_FASTA" "$REF_URL" || { echo "Failed to download reference genome"; exit 1; }
 
 ############################
 # FETCH SRA DATA

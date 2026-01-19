@@ -27,8 +27,14 @@ ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
 # DOWNLOAD REFERENCE GENOME
 ############################
 
+# Reference genome
+REF_URL="https://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/Severe_acute_respiratory_syndrome_coronavirus_2/latest_assembly_versions/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz"
+REF_FASTA="NC_045512.2.fasta"
+
 echo "Downloading SARS-CoV-2 reference genome..."
-wget -O $FASTA $FASTA_URL || { echo "Failed to download reference genome"; exit 1; }
+wget -O ref.fna.gz "$REF_URL" || { echo "Failed to download reference genome"; exit 1; }
+
+gunzip -c ref.fna.gz > "$REF_FASTA"
 
 ############################
 # FETCH SRA DATA
@@ -125,7 +131,7 @@ fi
 ############################
 
 echo "Annotating variants using SnpEff..."
-java -jar snpEff/snpEff.jar NC_045512.2 \
+snpEff NC_045512.2 \
     $FILTERED_VCF > $ANNOTATED_VCF || { echo "SnpEff annotation failed"; exit 1; }
 
 echo "Pipeline completed successfully."

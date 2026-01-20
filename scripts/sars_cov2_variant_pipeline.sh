@@ -1,138 +1,123 @@
-#!/bin/bash
-set -e  # Exit immediately if a command fails
 
-############################
-# VARIABLES
-############################
+#!/usr/bin/env bash
+set -euo pipefail
+
+#Configuration
 
 SRA_ID="SRR29011221"
-
-FASTA_URL="https://ftp.ncbi.nlm.nih.gov/genomes/all/NC_045512.2.fasta"
-FASTA="NC_045512.2.fasta"
-
-SRA_FILE="${SRA_ID}.sra"
-FASTQ1="${SRA_ID}_1.fastq"
-FASTQ2="${SRA_ID}_2.fastq"
-
-SAM_FILE="${SRA_ID}_aligned.sam"
-BAM_FILE="${SRA_ID}_aligned.bam"
-SORTED_BAM="${SRA_ID}_aligned_sorted.bam"
-
-PILEUP_FILE="${SRA_ID}.pileup"
-VCF_FILE="${SRA_ID}.vcf.gz"
-FILTERED_VCF="${SRA_ID}_filtered.vcf"
-ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
-
-############################
-# DOWNLOAD REFERENCE GENOME
-############################
+THREADS=4
 
 REF_FASTA="NC_045512.2.fasta"
-REF_URL="https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=NC_045512.2&db=nuccore&report=fasta"
+REF_NAME="NC_045512.2"
 
-echo "Downloading SARS-CoV-2 reference genome..."
-wget -O "$REF_FASTA" "$REF_URL" || { echo "Failed to download reference genome"; exit 1; }
+RESULTS_DIR="results"
+DATA_DIR="data"
+NEXTCLADE_DATASET="data/nextclade"
 
-############################
-# FETCH SRA DATA
-############################
-echo "Fetching SRA data..."
-prefetch "$SRA_ID" || { echo "Failed to fetch SRA data"; exit 1; }
+mkdir -p "$RESULTS_DIR" "$DATA_DIR"
 
-# -----------------------------
-# Convert SRA to FASTQ
-# -----------------------------
-echo "Converting SRA to FASTQ..."
-fasterq-dump "$SRA_ID" --split-files --threads 4 || { echo "Failed to convert SRA to FASTQ"; exit 1; }
+# CHECK DEPENDENCIES
 
-FASTQ1="${SRA_ID}_1.fastq"
-FASTQ2="${SRA_ID}_2.fastq"
 
-if [[ ! -f "$FASTQ1" || ! -f "$FASTQ2" ]]; then
-    echo "FASTQ files not found after fasterq-dump"
-    exit 1
+for tool in bwa samtools bcftools vcftools nextclade fasterq-dump prefetch bgzip tabix; do
+    if ! command -v $tool &>/dev/null; then
+        echo "ERROR: $tool not found in PATH"
+        exit 1
+    fi
+done
+
+
+# DOWNLOAD REFERENCE
+
+
+if [[ ! -f "$REF_FASTA" ]]; then
+    echo "Downloading SARS-CoV-2 reference genome..."
+    wget -O "$REF_FASTA" \
+      "https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=NC_045512.2&db=nuccore&report=fasta"
 fi
 
-############################
-# INDEX REFERENCE GENOME
-############################
 
-echo "Indexing reference genome..."
-bwa index $FASTA || { echo "Failed to index reference genome"; exit 1; }
+# INDEX REFERENCE
 
-############################
+
+bwa index "$REF_FASTA"
+samtools faidx "$REF_FASTA"
+
+
+# FETCH SRA
+
+
+if [[ ! -f "${SRA_ID}.fastq" && ! -f "${SRA_ID}_1.fastq" ]]; then
+    echo "Fetching SRA data..."
+    prefetch "$SRA_ID"
+    fasterq-dump "$SRA_ID" --split-files -O .
+fi
+
+
 # ALIGNMENT
-############################
 
-echo "Aligning reads to reference genome..."
-bwa mem $FASTA $FASTQ1 $FASTQ2 > $SAM_FILE || { echo "Alignment failed"; exit 1; }
 
-samtools flagstat $SAM_FILE > "${SRA_ID}_flagstat.txt"
+echo "Aligning reads..."
+bwa mem -t "$THREADS" "$REF_FASTA" \
+    "${SRA_ID}_1.fastq" "${SRA_ID}_2.fastq" \
+    > "${SRA_ID}.sam"
 
-############################
-# SAM → BAM → SORT
-############################
+samtools view -bS "${SRA_ID}.sam" > "${SRA_ID}.bam"
+samtools sort "${SRA_ID}.bam" -o "${SRA_ID}_sorted.bam"
+samtools index "${SRA_ID}_sorted.bam"
 
-echo "Converting SAM to BAM..."
-samtools view -Sb $SAM_FILE > $BAM_FILE
 
-echo "Sorting BAM file..."
-samtools sort $BAM_FILE -o $SORTED_BAM
-
-echo "Indexing BAM file..."
-samtools index $SORTED_BAM
-
-############################
 # VARIANT CALLING
-############################
-
-echo "Generating pileup..."
-samtools mpileup -f $FASTA $SORTED_BAM > $PILEUP_FILE
 
 echo "Calling variants..."
-bcftools mpileup -f $FASTA $SORTED_BAM | \
-bcftools call -mv -Oz -o $VCF_FILE
+bcftools mpileup -f "$REF_FASTA" "${SRA_ID}_sorted.bam" \
+| bcftools call -mv -Oz -o "${SRA_ID}.vcf.gz"
 
-bcftools index $VCF_FILE
+tabix -p vcf "${SRA_ID}.vcf.gz"
 
-############################
 # FILTER VARIANTS
-############################
 
-############################
-# FILTER VARIANTS
-############################
+FILTERED_VCF="${RESULTS_DIR}/${SRA_ID}_filtered.vcf"
 
 echo "Filtering variants (QUAL ≥ 30)..."
+vcftools --gzvcf "${SRA_ID}.vcf.gz" \
+    --minQ 30 \
+    --recode \
+    --recode-INFO-all \
+    --stdout > "$FILTERED_VCF"
 
-FILTERED_VCF="${SRA_ID}_filtered.recode.vcf"
-
-vcftools --gzvcf "$VCF_FILE" \
-         --minQ 30 \
-         --recode \
-         --recode-INFO-all \
-         --out "${SRA_ID}_filtered" \
-         2> vcftools_error.log
-
-if [[ ! -f "$FILTERED_VCF" ]]; then
-    echo "Filtered VCF not created. Exiting."
-    cat vcftools_error.log
+if [[ ! -s "$FILTERED_VCF" ]]; then
+    echo "Filtered VCF not created"
     exit 1
 fi
 
-echo "Filtered VCF created: $FILTERED_VCF"
+# CONSENSUS GENOME
 
-############################
-# VARIANT ANNOTATION (bcftools csq)
-############################
+echo "Generating consensus genome..."
+bgzip -c "$FILTERED_VCF" > "${FILTERED_VCF}.gz"
+tabix -p vcf "${FILTERED_VCF}.gz"
 
-ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
+bcftools consensus \
+    -f "$REF_FASTA" \
+    "${FILTERED_VCF}.gz" \
+    > "${RESULTS_DIR}/${SRA_ID}_consensus.fasta"
 
-echo "Annotating variants using bcftools csq..."
+# NEXTCLADE DATASET
 
-bcftools csq \
-    -f NC_045512.2.fasta \
-    -g NC_045512.2.gff \
-    "$FILTERED_VCF" -Ov -o "$ANNOTATED_VCF" || { echo "bcftools csq failed"; exit 1; }
+if [[ ! -d "$NEXTCLADE_DATASET" ]]; then
+    echo "Downloading Nextclade dataset..."
+    nextclade dataset get \
+        --name sars-cov-2 \
+        --output-dir "$NEXTCLADE_DATASET"
+fi
 
-echo "Annotated VCF created: $ANNOTATED_VCF"
+# NEXTCLADE ANNOTATION
+
+echo "Running Nextclade..."
+nextclade run \
+    -D "$NEXTCLADE_DATASET" \
+    "${RESULTS_DIR}/${SRA_ID}_consensus.fasta" \
+    --output-tsv "${RESULTS_DIR}/${SRA_ID}_nextclade.tsv" \
+    --output-json "${RESULTS_DIR}/${SRA_ID}_nextclade.json"
+
+echo "Pipeline completed successfully"

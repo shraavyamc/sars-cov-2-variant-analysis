@@ -127,10 +127,14 @@ echo "Filtered VCF created: $FILTERED_VCF"
 ############################
 
 ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
+GFF_FILE="NC_045512.2.gff"
 
-echo "Annotating variants using SnpEff..."
+echo "Annotating variants using SnpEff (GFF-based, no database)..."
 
-snpEff NC_045512.2 \
+snpEff ann \
+    -noGenome \
+    -v \
+    "$GFF_FILE" \
     "$FILTERED_VCF" > "$ANNOTATED_VCF" || { echo "SnpEff annotation failed"; exit 1; }
 
 echo "Annotated VCF created: $ANNOTATED_VCF"

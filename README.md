@@ -48,15 +48,14 @@ sars-cov-2-variant-analysis/
   .gitignore
   README.md
 
-yaml
-Copy code
-
 ---
 
 ## How to Run the Pipeline
 
 ```bash
 bash scripts/sars_cov2_variant_pipeline.sh
+```
+
 Required tools:
 sra-tools
 

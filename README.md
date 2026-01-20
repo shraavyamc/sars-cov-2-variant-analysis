@@ -9,7 +9,7 @@ and focuses on mutation discovery, interpretation, and lineage annotation.
 
 ---
 
-## 🔬 Overview of the Workflow
+##  Overview of the Workflow
 
 1. Download SARS-CoV-2 reference genome (NC_045512.2)
 2. Download sequencing data from NCBI SRA
@@ -24,7 +24,7 @@ and focuses on mutation discovery, interpretation, and lineage annotation.
 
 ---
 
-## 🧬 Missense Mutation Identification
+##  Missense Mutation Identification
 
 Missense mutations are identified using **Nextclade** annotation.
 These are reported in the `aaSubstitutions` column of the Nextclade output TSV.
@@ -43,14 +43,10 @@ curated SARS-CoV-2 annotation standards.
 ## Repository Structure
 
 sars-cov-2-variant-analysis/
-├── scripts/
-│ └── sars_cov2_variant_pipeline.sh
-├── docs/
-│ └── METHODS.md
-├── data/ # ignored (raw data)
-├── results/ # ignored (generated outputs)
-├── .gitignore
-└── README.md
+  scripts/sars_cov2_variant_pipeline.sh
+  docs/METHODS.md
+  .gitignore
+  README.md
 
 yaml
 Copy code

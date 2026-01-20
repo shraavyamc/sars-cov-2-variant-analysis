@@ -43,10 +43,10 @@ curated SARS-CoV-2 annotation standards.
 ## Repository Structure
 
 sars-cov-2-variant-analysis/
-  scripts/sars_cov2_variant_pipeline.sh
-  docs/METHODS.md
-  .gitignore
-  README.md
+ 1. scripts/sars_cov2_variant_pipeline.sh
+ 2. docs/METHODS.md
+ 3. .gitignore
+ 4. README.md
 
 ---
 

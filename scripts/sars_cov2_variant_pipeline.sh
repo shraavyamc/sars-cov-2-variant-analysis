@@ -123,18 +123,16 @@ fi
 echo "Filtered VCF created: $FILTERED_VCF"
 
 ############################
-# VARIANT ANNOTATION (SnpEff)
+# VARIANT ANNOTATION (bcftools csq)
 ############################
 
 ANNOTATED_VCF="${SRA_ID}_annotated.vcf"
-GFF_FILE="NC_045512.2.gff"
 
-echo "Annotating variants using SnpEff (GFF-based, no database)..."
+echo "Annotating variants using bcftools csq..."
 
-snpEff ann \
-    -noGenome \
-    -v \
-    "$GFF_FILE" \
-    "$FILTERED_VCF" > "$ANNOTATED_VCF" || { echo "SnpEff annotation failed"; exit 1; }
+bcftools csq \
+    -f NC_045512.2.fasta \
+    -g NC_045512.2.gff \
+    "$FILTERED_VCF" -Ov -o "$ANNOTATED_VCF" || { echo "bcftools csq failed"; exit 1; }
 
 echo "Annotated VCF created: $ANNOTATED_VCF"

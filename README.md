@@ -31,7 +31,6 @@ These are reported in the `aaSubstitutions` column of the Nextclade output TSV.
 
 Example mutations detected include:
 
-- **Spike protein**: D614G, N501Y, P681R
 - **Nucleocapsid**: R203K, G204R
 - **ORF1a / ORF1b** substitutions
 
